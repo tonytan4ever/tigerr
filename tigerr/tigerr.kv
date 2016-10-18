@@ -10,10 +10,21 @@
         Rectangle:
             size: self.size
             pos: self.pos
-    value: ''
-    url: 'http://www.google.com'
+    branch: ''
+    title: ''
+    id: ''
+    createdOn: 0
+    lastUpdated: 0
+    commitMessage: ''
+    number: ''
+    subject: ''
+    topic: ''
+    url: ''
+    open: True
+    project: ''
+    status: ''
     Button:
-        text: root.value
+        text: root.title
         on_press: browser.open(url=root.url, new=2)
 
 <Tigerr>:
