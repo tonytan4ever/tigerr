@@ -2,6 +2,7 @@ import kivy
 kivy.require('1.9.2')
 # Uses RecycleView, new in 1.9.2, replacing ListView (deprecated)
 
+from pprint import pprint as pp
 from random import sample
 from string import ascii_lowercase
 import subprocess
@@ -19,28 +20,42 @@ from kivy.uix.settings import SettingsWithSidebar
 from settings import settings_json
 
 
+def gerrit_query(port, user, host, keyfile, query=None,
+                 limit=10):
+    if not query:
+        _sq = 'status:open project:openstack/neutron'
+    else:
+        _sq = query
+    _query = 'gerrit query --format=JSON {subquery} limit:{lim}'.format(
+            subquery=_sq, lim=limit)
+    proc = subprocess.Popen(['/usr/bin/ssh', '-i', keyfile, '-p', port,
+                             '{}@{}'.format(user, host),
+                             _query],
+                            stdout=subprocess.PIPE,
+                            )
+    x, e = proc.communicate()
+    results = []
+    stats = []
+    for rr in x.split('\n'):
+        if rr:
+            _r = json.loads(rr)
+            if 'type' in _r:
+                if _r['type'] == 'stats':
+                    stats = _r
+            else:
+                results.append(_r)
+    pp(results)
+    return results, stats
+
+
 class Tigerr(BoxLayout):
     def populate(self):
-        p = Config.get('gerrit', 'port')
-        u = Config.get('gerrit', 'user')
-        h = Config.get('gerrit', 'host')
-        _l = 10 
-        query = 'ssh -p {p} {u}@{h} gerrit query --format=JSON {q} limit:{l}'
-        _sq = 'status:open project:openstack/neutron'
-        proc = subprocess.Popen(query.format(p=p,u=u,h=h,q=_sq,_l=10).split(),
-                                stdout=subprocess.PIPE)
-        x, e = proc.communicate()
-        results = []
-        stats = []
-        for rr in x.split('\n'):
-            if rr:
-                _r = json.loads(rr)
-                if 'type' in _r:
-                    if _r['type'] == 'stats':
-                        stats = _r
-                else:
-                    results.append(_r)
-        self.rv.data = results
+        config = App._running_app.config
+        p = config.get('gerrit', 'port')
+        u = config.get('gerrit', 'user')
+        h = config.get('gerrit', 'host')
+        k = config.get('gerrit', 'keyf')
+        self.rv.data, stats = gerrit_query(p, u, h, k)
 
     def sort(self):
         self.rv.data = sorted(self.rv.data, key=lambda x: x[''])
@@ -72,7 +87,8 @@ class TigerrApp(App):
         config.setdefaults('gerrit', {
                 'host': 'review.openstack.org',
                 'port': 29418,
-                'user': 'Jdoe'})
+                'user': 'Jdoe',
+                'keyf': '~/.ssh/id_rsa.pub'})
 
     def build_settings(self, settings):
         settings.add_json_panel('gerrit',
