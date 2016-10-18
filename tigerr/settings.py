@@ -23,4 +23,10 @@ settings_json = json.dumps([
      'title': 'Gerrit username',
      'desc': 'Your Gerrit ssh username, ex: Jdoe',
      'section': 'gerrit',
-     'key': 'user'}])
+     'key': 'user'},
+    
+    {'type': 'path',
+     'title': 'Gerrit ssh keyfile',
+     'desc': 'Your Gerrit ssh keyfile path, ex: /home/me/.ssh/id_rsa.pub',
+     'section': 'gerrit',
+     'key': 'keyf'}])
