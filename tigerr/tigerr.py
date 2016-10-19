@@ -3,6 +3,9 @@ kivy.require('1.9.2')
 # Uses RecycleView, new in 1.9.2, replacing ListView (deprecated)
 
 from datetime import datetime as dt
+from os.path import join as pjoin
+from os.path import expanduser as xpusr
+import pickle
 from pprint import pprint as pp
 import subprocess
 import json
@@ -19,7 +22,16 @@ from kivy.uix.settings import SettingsWithSidebar
 from settings import settings_json
 
 
-def gerrit_query(port, user, host, keyfile, query,limit):
+_T = '%Y-%b-%d %I:%M:%S %p'  # TODO: make configurable
+_Q_PATH = '.tigerr_queries.p'
+_PS_PATH = '.tigerr_patchsets.p'
+
+
+def _dt_ts(timestamp, strft):
+    return dt.fromtimestamp(timestamp).strftime(strft)
+
+
+def gerrit_query(port, user, host, keyfile, query, limit):
     _sq = query
     _query = str('gerrit query --all-approvals '
                  '--format=JSON {subquery} limit:{lim}'.format(subquery=_sq,
@@ -39,10 +51,8 @@ def gerrit_query(port, user, host, keyfile, query,limit):
                 if _r['type'] == 'stats':
                     stats = _r
             else:
-                _r['createdOnStr'] = dt.fromtimestamp(
-                        _r['createdOn']).strftime('%Y-%b-%d %I:%M:%S %p')
-                _r['lastUpdatedStr'] = dt.fromtimestamp(
-                        _r['lastUpdated']).strftime('%Y-%b-%d %I:%M:%S %p')
+                _r['createdOnStr'] = _dt_ts(_r['createdOn'], _T)
+                _r['lastUpdatedStr'] = _dt_ts(_r['lastUpdated'], _T)
                 _r['owned_by'] = _r['owner']['name']
                 _r['owner_email'] = _r['owner']['email']
                 _r['owner_username'] = _r['owner']['username']
@@ -52,22 +62,34 @@ def gerrit_query(port, user, host, keyfile, query,limit):
 
 
 class Tigerr(BoxLayout):
-    def populate(self, q, l):
-        print(q)
-        print(l)
+    def __init__(self, **kwargs):
+        super(Tigerr, self).__init__(**kwargs)
+        self.cache_dir = xpusr(App._running_app.config.get('tigerr',
+                                                           'cache_dir'))
+        self.unpickle_cache()
+
+    def execute_query(self, query, limit):
         config = App._running_app.config
-        p = config.get('gerrit', 'port')
-        u = config.get('gerrit', 'user')
-        h = config.get('gerrit', 'host')
-        k = config.get('gerrit', 'keyf')
-        self.rv.data, stats = gerrit_query(p, u, h, k, q, l)
+        port = config.get('tigerr', 'port')
+        user = config.get('tigerr', 'user')
+        host = config.get('tigerr', 'host')
+        key = config.get('tigerr', 'keyf')
+        q_dat, stats = gerrit_query(port, user, host, key, query, limit)
+        self.patchsets.data = self.update_cache(ps_dat, self.ps_cache)
+        self.queries.data = self.update_cache(q_dat, self.q_cache)
         print(stats)
+
+    def update_cache(self, query_data, cache):
+        for record in query_data:
+            # record['id'] is the 'I57458722234...' string identifier in a PS
+            if record['id'] in cache.keys():
+                cache[record['id']] = record
+            else:
+                cache.update({record['id']: record})
+        return cache
 
     def sort(self):
         self.rv.data = sorted(self.rv.data, key=lambda x: x['createdOn'])
-
-    def clear(self):
-        self.rv.data = []
 
     def insert(self, value):
         self.rv.data.insert(0, {'value': value or 'default value'})
@@ -81,6 +103,20 @@ class Tigerr(BoxLayout):
         if self.rv.data:
             self.rv.data.pop(0)
 
+    def pickle_cache(self):
+        self._pickle(self.q_cache, _Q_PATH)
+        self._pickle(self.ps_cache, _PS_PATH)
+
+    def _pickle(self, the_dict, the_filename):
+        pickle.dump(the_dict, open(pjoin(self.cache_dir, the_filename), 'wb'))
+
+    def unpickle_cache(self):
+        self.q_cache = self._unpickle(_Q_PATH)
+        self.ps_cache = self._unpickle(_PS_PATH)
+
+    def _unpickle(self, the_filename):
+        return pickle.load(open(pjoin(self.cache_dir, the_filename), 'rb'))
+
 
 class TigerrApp(App):
     def build(self):
@@ -89,14 +125,15 @@ class TigerrApp(App):
         return Tigerr()
 
     def build_config(self, config):
-        config.setdefaults('gerrit', {
+        config.setdefaults('tigerr', {
                 'host': 'review.openstack.org',
                 'port': 29418,
                 'user': 'Jdoe',
-                'keyf': '~/.ssh/id_rsa.pub'})
+                'keyf': '~/.ssh/id_rsa.pub',
+                'cache_dir': '~/.tigerr'})
 
     def build_settings(self, settings):
-        settings.add_json_panel('gerrit',
+        settings.add_json_panel('tigerr',
                                 self.config,
                                 data=settings_json)
 
