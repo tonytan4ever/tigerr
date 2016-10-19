@@ -63,10 +63,10 @@ def gerrit_query(port, user, host, keyfile, query, limit):
 
 class Tigerr(BoxLayout):
     def __init__(self, **kwargs):
-        super(Tigerr, self).__init__(**kwargs)
         self.cache_dir = xpusr(App._running_app.config.get('tigerr',
                                                            'cache_dir'))
         self.unpickle_cache()
+        super(Tigerr, self).__init__(**kwargs)
 
     def execute_query(self, query, limit):
         config = App._running_app.config

@@ -6,52 +6,11 @@
 
 #:set _fsize dp(12)
 
+# Tigerr is a BoxLayout containing 2 side-by-side panes featuring RecycleViews
+# and appropriate controls above each pane with a title label
 
-<RLabel@Label>:
-    font_size: _fsize
-    text: ''
-
-
-<Row@BoxLayout>:
-    canvas.before:
-        Color:
-            rgba: 0.5, 0.5, 0.5, 1
-        Rectangle:
-            size: self.size
-            pos: self.pos
-    branch: ''
-    id: ''
-    createdOn: 0
-    createdOnStr: ''
-    lastUpdated: 0
-    lastUpdatedStr: ''
-    commitMessage: ''
-    number: ''
-    subject: ''
-    topic: ''
-    url: ''
-    owned_by: ''
-    owner_email: ''
-    open: True
-    project: ''
-    status: ''
-    GridLayout:
-        cols: 2
-        rows: 2
-        Button:
-            text: root.subject
-            font_size: _fsize + 2
-            bold: True
-            text_size: self.width-5, self.height-5
-            valign: 'top'
-            on_press: browser.open(url=root.url, new=2)
-        RLabel:
-            text: 'created: ' + root.createdOnStr
-        RLabel:
-            text: root.owned_by
-        RLabel:
-            text: 'updated: ' + root.lastUpdatedStr
-
+# orientation: 'horizontal' --> y, top and center_y may be used for pos hints
+# orientation: 'vertical' --> x, right and center_x may be used
 
 <Tigerr>:
     canvas:
@@ -60,73 +19,83 @@
         Rectangle:
             size: self.size
             pos: self.pos
-    rv: rv
+    # (A)
     orientation: 'vertical'
-    GridLayout:
-        cols: 3
-        rows: 2
-        size_hint_y: None
-        height: dp(108)
-        padding: dp(8)
-        spacing: dp(16)
-        Button:
-            text: 'Refresh'
-            on_press: root.populate(str(query_input.text), str(limit_input.text))
-            size_hint_x: None
-            width: self.width
-        Button:
-            text: 'Clear all'
-            on_press: root.clear()
-            size_hint_x: None
-            width: self.width
-        Button:
-            text: 'Sort list'
-            on_press: root.sort()
+    cols: 1
+    rows: 3
+    BoxLayout:
+        size_hint: (None, None)
+        height: dp(24)
+        orientation: 'vertical'
+        cols: 1
+        rows: 1
+        Label:
+            # (file/edit/view menu)
+            # TODO
+            text_size: [self.width + 4, self.height + 2]
+            text: 'file edit view buttons'
+            valign: 'top'
+            halign: 'center'
+            padding: [1, 4]
+            height: dp(12)
+    BoxLayout:
+        size_hint_y: 0.9
+        canvas:
+            Color:
+                rgba: 0.4, 0.4, 0.4, 1
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        # (B)
+        orientation: 'horizontal'
+        cols: 2
+        rows: 1
+        spacing: 5
         BoxLayout:
-            spacing: dp(8)
-            Button:
-                text: 'Query'
-                size_hint_x: None
-                width: self.width
-                on_press: root.populate(query_input.text, limit_input.text)
-            TextInput:
-                id: query_input
-                size_hint_x: 1.0
-                multiline: False
-                text: 'status:open project:openstack/neutron'
-                padding: dp(10), dp(10), 0, 0
-        BoxLayout:
-            spacing: dp(8)
-            Label:
-                text: 'Limit'
-                size_hint_x: None
-                width: self.width
-                # on_press: root.populate(query_input.text, limit_input.text)
-            TextInput:
-                id: limit_input
-                size_hint_x: None
-                width: dp(40)
-                text: '20'
-                padding: dp(10), dp(10), 0, 0
-        Button:
-            text: 'TODO'
-            on_press: pass # root.remove()
-
-    Button:
-        size_hint: (.2, 0.2)
-        text: 'Settings'
-        on_press: app.open_settings()
-
-    RecycleView:
-        id: rv
-        scroll_type: ['bars', 'content']
-        scroll_wheel_distance: dp(114)
-        bar_width: dp(10)
-        viewclass: 'Row'
-        RecycleBoxLayout:
-            default_size: None, dp(56)
-            default_size_hint: 1, None
-            size_hint_y: None
-            height: self.minimum_height
+            # (C)
+            canvas:
+                Color:
+                    rgba: .5, 0., 0., 1
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
             orientation: 'vertical'
-            spacing: dp(2)
+            cols: 1
+            rows: 3
+            Label:
+                text: 'Queries'
+            Label:
+                text: 'query icons here'
+            RecycleView:
+                # TODO
+        BoxLayout:
+            # (D)
+            canvas:
+                Color:
+                    rgba: 0., 0., .5, 1
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+            orientation: 'vertical'
+            cols: 1
+            rows: 3
+            Label:
+                text: 'Patchsets'
+            Label:
+                text: 'patchset icons here'
+            RecycleView:
+                # TODO
+    BoxLayout:
+        size_hint: (None, None)
+        height: dp(24)
+        orientation: 'vertical'
+        cols: 1
+        rows: 1
+        Label:
+            height: dp(14)
+            font_size: dp(12)
+            text_size: [root.width, self.height + 2]
+            text: 'last banner message / query status'
+            valign: 'middle'
+            halign: 'right'
+
