@@ -1,7 +1,16 @@
 #:kivy 1.9.2
 
 # RecycleView is new in 1.9.2 and replaces ListView (deprecated in 1.9.2).
+
 #:import browser webbrowser
+
+#:set _fsize dp(12)
+
+
+<RLabel@Label>:
+    font_size: _fsize
+    text: ''
+
 
 <Row@BoxLayout>:
     canvas.before:
@@ -13,18 +22,36 @@
     branch: ''
     id: ''
     createdOn: 0
+    createdOnStr: ''
     lastUpdated: 0
+    lastUpdatedStr: ''
     commitMessage: ''
     number: ''
     subject: ''
     topic: ''
     url: ''
+    owned_by: ''
+    owner_email: ''
     open: True
     project: ''
     status: ''
-    Button:
-        text: root.subject
-        on_press: browser.open(url=root.url, new=2)
+    GridLayout:
+        cols: 2
+        rows: 2
+        Button:
+            text: root.subject
+            font_size: _fsize + 2
+            bold: True
+            text_size: self.width-5, self.height-5
+            valign: 'top'
+            on_press: browser.open(url=root.url, new=2)
+        RLabel:
+            text: 'created: ' + root.createdOnStr
+        RLabel:
+            text: root.owned_by
+        RLabel:
+            text: 'updated: ' + root.lastUpdatedStr
+
 
 <Tigerr>:
     canvas:
@@ -43,37 +70,47 @@
         padding: dp(8)
         spacing: dp(16)
         Button:
-            text: 'Populate list'
-            on_press: root.populate()
+            text: 'Refresh'
+            on_press: root.populate(str(query_input.text), str(limit_input.text))
+            size_hint_x: None
+            width: self.width
+        Button:
+            text: 'Clear all'
+            on_press: root.clear()
+            size_hint_x: None
+            width: self.width
         Button:
             text: 'Sort list'
             on_press: root.sort()
-        Button:
-            text: 'Clear list'
-            on_press: root.clear()
         BoxLayout:
             spacing: dp(8)
             Button:
-                text: 'Insert new item'
-                on_press: root.insert(new_item_input.text)
+                text: 'Query'
+                size_hint_x: None
+                width: self.width
+                on_press: root.populate(query_input.text, limit_input.text)
             TextInput:
-                id: new_item_input
-                size_hint_x: 0.6
-                hint_text: 'value'
+                id: query_input
+                size_hint_x: 1.0
+                multiline: False
+                text: 'status:open project:openstack/neutron'
                 padding: dp(10), dp(10), 0, 0
         BoxLayout:
             spacing: dp(8)
-            Button:
-                text: 'Update first item'
-                on_press: root.update(update_item_input.text)
+            Label:
+                text: 'Limit'
+                size_hint_x: None
+                width: self.width
+                # on_press: root.populate(query_input.text, limit_input.text)
             TextInput:
-                id: update_item_input
-                size_hint_x: 0.6
-                hint_text: 'new value'
+                id: limit_input
+                size_hint_x: None
+                width: dp(40)
+                text: '20'
                 padding: dp(10), dp(10), 0, 0
         Button:
-            text: 'Remove first item'
-            on_press: root.remove()
+            text: 'TODO'
+            on_press: pass # root.remove()
 
     Button:
         size_hint: (.2, 0.2)
