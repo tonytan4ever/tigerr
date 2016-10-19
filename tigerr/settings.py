@@ -5,28 +5,39 @@ import json
 
 settings_json = json.dumps([
     {'type': 'title',
-     'title': 'Gerrit settings'},
+     'title': 'Gerrit Settings'},
 
     {'type': 'string',
-     'title': 'Gerrit hostname',
+     'title': 'Hostname',
      'desc': 'ex: review.openstack.org',
-     'section': 'gerrit',
+     'section': 'tigerr',
      'key': 'host'},
 
     {'type': 'numeric',
-     'title': 'Gerrit port',
+     'title': 'Port',
      'desc': 'ex: 29418',
-     'section': 'gerrit',
+     'section': 'tigerr',
      'key': 'port'},
 
     {'type': 'string',
-     'title': 'Gerrit username',
-     'desc': 'Your Gerrit ssh username, ex: Jdoe',
-     'section': 'gerrit',
+     'title': 'User Name',
+     'desc': 'Your Gerrit ssh user name, ex: Jdoe',
+     'section': 'tigerr',
      'key': 'user'},
     
     {'type': 'path',
-     'title': 'Gerrit ssh keyfile',
-     'desc': 'Your Gerrit ssh keyfile path, ex: /home/me/.ssh/id_rsa.pub',
-     'section': 'gerrit',
-     'key': 'keyf'}])
+     'title': 'SSH keyfile',
+     'desc': 'Your Gerrit ssh keyfile location, ex: ~/.ssh/id_rsa.pub',
+     'section': 'tigerr',
+     'key': 'keyf'},
+    
+    {'type': 'title',
+     'title': 'Tigerr Settings'},
+
+    {'type': 'path',
+     'title': 'Cache directory',
+     'desc': 'Directory for persisting data, ex: ~/.tigerr',
+     'section': 'tigerr',
+     'key': 'cache_dir'}
+
+    ])
