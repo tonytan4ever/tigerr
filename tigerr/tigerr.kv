@@ -23,21 +23,39 @@
     orientation: 'vertical'
     cols: 1
     rows: 3
+    queries: queries
     BoxLayout:
         size_hint: (None, None)
         height: dp(24)
-        orientation: 'vertical'
-        cols: 1
+        orientation: 'horizontal'
+        cols: 4
         rows: 1
+        margin: [5, 5]
+        Button:
+            font_size: dp(12)
+            size_hint: (0.3, 1)
+            size: self.size
+            text: 'file'
+        Button:
+            font_size: dp(12)
+            size_hint: (0.3, 1)
+            text: 'edit'
+        Button:
+            font_size: dp(12)
+            size_hint: (1, 1)
+            text: 'view'
         Label:
             # (file/edit/view menu)
             # TODO
+            font_blending: False
             text_size: [self.width + 4, self.height + 2]
-            text: 'file edit view buttons'
-            valign: 'top'
+            font_size: dp(11)
+            width: root.width
+            text: ''
+            valign: 'middle'
             halign: 'center'
-            padding: [1, 4]
             height: dp(12)
+            font_name: 'fonts/Vera.ttf'
     BoxLayout:
         size_hint_y: 0.9
         canvas:
@@ -55,47 +73,159 @@
             # (C)
             canvas:
                 Color:
-                    rgba: .5, 0., 0., 1
+                    rgba: 0.4, 0.4, 0.4, 1
                 Rectangle:
                     size: self.size
                     pos: self.pos
             orientation: 'vertical'
             cols: 1
-            rows: 3
-            Label:
+            rows: 2
+            size_hint: (0.3, 1.0)
+            size: (q.width, root.height)
+            PanelHeader:
+                id: q
+                width: dp(140)
                 text: 'Queries'
-            Label:
-                text: 'query icons here'
+                bold: True
+            IconsArea:
+                text: '+'
             RecycleView:
-                # TODO
+                id: queries
+                scroll_type: ['bars', 'content']
+                scroll_wheel_distance: dp(124)
+                bar_width: dp(8)
+                viewclass: 'QueryRow'
+                RecycleBoxLayout:
+                    default_size: None, dp(25)
+                    default_size_hint: 1, None
+                    size_hint_y: None
+                    height: self.minimum_height
+                    orientation: 'vertical'
+                    spacing: dp(5)
+
         BoxLayout:
             # (D)
             canvas:
                 Color:
-                    rgba: 0., 0., .5, 1
+                    rgba: 0.35, 0.35, 0.35, 1
                 Rectangle:
                     size: self.size
                     pos: self.pos
             orientation: 'vertical'
             cols: 1
             rows: 3
-            Label:
+            size_hint: (1.0, 1.0)
+            PanelHeader:
                 text: 'Patchsets'
-            Label:
-                text: 'patchset icons here'
+            IconsArea:
+                text: ''
             RecycleView:
                 # TODO
+                id: patchsets
+                scroll_type: ['bars', 'content']
+                scroll_wheel_distance: dp(124)
+                bar_width: dp(10)
+                viewclass: 'PatchsetRow'
+                RecycleBoxLayout:
+                    default_size: None, dp(50)
+                    default_size_hint: 1, None
+                    size_hint_y: None
+                    height: self.minimum_height
+                    orientation: 'vertical'
+                    spacing: dp(5)
     BoxLayout:
         size_hint: (None, None)
         height: dp(24)
         orientation: 'vertical'
-        cols: 1
+        cols: 3
         rows: 1
         Label:
+            font_name: 'fonts/Vera.ttf'
+            multiline: False
             height: dp(14)
-            font_size: dp(12)
-            text_size: [root.width, self.height + 2]
+            font_size: dp(10)
+            text_size: [root.width, dp(12)]
+            opacity: 0.25
             text: 'last banner message / query status'
             valign: 'middle'
             halign: 'right'
 
+
+
+<PatchsetRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.5, 0.5, 0.5, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    subject: 'TODO'
+    GridLayout:
+        cols: 2
+        rows: 2
+        Button: 
+            text: root.subject
+        Label:
+            text: '1'
+        Label:
+            text: '2'
+        Label:
+            text: '3'
+
+<QueryRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.6, 0.6, 0.6, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    title: 'query name'
+    query: ''
+    alerts: 0
+    qpid: ''
+    GridLayout:
+        rows: 1
+        cols: 3
+        Image:
+            source: 'eye_open.gif'
+        Label:
+            font_name: 'fonts/Vera-Bold.ttf'
+            font_size: dp(10)
+            text: root.title
+            text_size: [root.width / 1.5, dp(10)]
+            halign: 'right'
+            valign: 'middle'
+            bold: True
+            multiline: False
+            shorten: True
+        Label:
+            font_name: 'fonts/Vera.ttf'
+            font_size: dp(12)
+            text: str(root.alerts)
+            opacity: 0.0
+
+
+<IconsArea@Label>:
+    text: ''
+    size_hint: (None, None)
+    text_size: root.width, self.height
+    valign: 'top'
+    halign: 'right'
+    height: dp(15)
+    font_size: 9
+    font_name: 'fonts/Vera.ttf'
+
+
+<PanelHeader@Label>:
+    text: ''
+    color: 1, 1, 1, 0.5
+    size_hint: (None, None)
+    padding: 5, 5
+    text_size: root.width, self.height
+    valign: 'top'
+    halign: 'left'
+    height: dp(25)
+    width: self.width
+    font_size: dp(15)
+    bold: True
+    font_name: 'fonts/Vera-Bold.ttf'

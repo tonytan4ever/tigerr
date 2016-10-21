@@ -2,6 +2,14 @@ import kivy
 kivy.require('1.9.2')
 # Uses RecycleView, new in 1.9.2, replacing ListView (deprecated)
 
+from kivy.config import Config
+# Comment out this line to develop touch features on a non-touch device
+Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
+
+Config.set('graphics', 'minimum_width', '400')
+Config.set('graphics', 'minimum_height', '400')
+
+
 from datetime import datetime as dt
 from os.path import join as pjoin
 from os.path import expanduser as xpusr
@@ -9,11 +17,11 @@ import pickle
 from pprint import pprint as pp
 import subprocess
 import json
+from uuid import uuid4
 import webbrowser
 
 from kivy.app import App
 from kivy.lang import Builder
-from kivy.config import Config
 from kivy.properties import NumericProperty
 from kivy.properties import StringProperty
 from kivy.uix.boxlayout import BoxLayout
@@ -21,7 +29,7 @@ from kivy.uix.settings import SettingsWithSidebar
 
 from settings import settings_json
 
-
+_VERSION = 'beta 0.4'
 _T = '%Y-%b-%d %I:%M:%S %p'  # TODO: make configurable
 _Q_PATH = '.tigerr_queries.p'
 _PS_PATH = '.tigerr_patchsets.p'
@@ -29,6 +37,23 @@ _PS_PATH = '.tigerr_patchsets.p'
 
 def _dt_ts(timestamp, strft):
     return dt.fromtimestamp(timestamp).strftime(strft)
+
+
+def _default_query_cache():
+    '''Only needs to be called once on first start'''
+    default_queries = [{'qpid': str(uuid4()),  # query <-> patchset association
+                        'title': 'My Starred',
+                        'query': 'is:starred',
+                        'alerts': 0},
+                       {'qpid': str(uuid4()),
+                        'title': 'My Watched',
+                        'query': 'status:open is:watched',
+                        'alerts': 0},
+                       {'qpid': str(uuid4()),
+                        'title': 'My Drafts',
+                        'query': 'owner:self is:draft',
+                        'alerts': 0}]
+    return default_queries
 
 
 def gerrit_query(port, user, host, keyfile, query, limit):
@@ -63,10 +88,12 @@ def gerrit_query(port, user, host, keyfile, query, limit):
 
 class Tigerr(BoxLayout):
     def __init__(self, **kwargs):
+        super(Tigerr, self).__init__(**kwargs)
         self.cache_dir = xpusr(App._running_app.config.get('tigerr',
                                                            'cache_dir'))
         self.unpickle_cache()
-        super(Tigerr, self).__init__(**kwargs)
+        print('Cache restored, got queries: {}'.format(self.q_cache))
+        self.queries.data = self.q_cache
 
     def execute_query(self, query, limit):
         config = App._running_app.config
@@ -76,7 +103,6 @@ class Tigerr(BoxLayout):
         key = config.get('tigerr', 'keyf')
         q_dat, stats = gerrit_query(port, user, host, key, query, limit)
         self.patchsets.data = self.update_cache(ps_dat, self.ps_cache)
-        self.queries.data = self.update_cache(q_dat, self.q_cache)
         print(stats)
 
     def update_cache(self, query_data, cache):
@@ -115,11 +141,18 @@ class Tigerr(BoxLayout):
         self.ps_cache = self._unpickle(_PS_PATH)
 
     def _unpickle(self, the_filename):
-        return pickle.load(open(pjoin(self.cache_dir, the_filename), 'rb'))
+        try:
+            return pickle.load(open(pjoin(self.cache_dir, the_filename), 'rb'))
+        except IOError:
+            return _default_query_cache()
 
 
 class TigerrApp(App):
+    title = 'Tiger - {}'.format(_VERSION)
     def build(self):
+        # Icon file format/size requirements vary from platform to platform.
+        # Bug: no app icon ubuntu 16: https://github.com/kivy/kivy/issues/2202
+        self.icon = 'icon.png'
         self.settings_cls = SettingsWithSidebar
         self.use_kivy_settings = False
         return Tigerr()
