@@ -1,0 +1,47 @@
+#:kivy 1.9.2
+
+<AddQuery>:
+    size_hint: 0.75, 0.75
+    auto_dismiss: False
+    title: 'Create Query'
+    separator_color: [1.0, 1.0, 1.0, 0.5]
+    GridLayout:
+        cols: 1
+        rows: 5
+        Label:
+            text: 'Query Title:'
+            font_size: dp(20)
+            size_hint: (None, None)
+            pos_hint: {'left': 0.0}
+        TextInput:
+            id: title
+            font_size: dp(15)
+            multiline: False
+            font_name: 'fonts/Vera-Bold.ttf'
+            bold: True
+            text: 'My Custom Query'
+        Label:
+            text: 'Query:'
+            font_size: dp(20)
+            size_hint: (None, None)
+            pos_hint: {'left': 0.0}
+        TextInput:
+            id: query
+            font_size: dp(12)
+            multiline: True
+            font_name: 'fonts/Vera.ttf'
+            bold: False
+            text: 'is:open project:...'
+        GridLayout:
+            cols: 3
+            rows: 1
+            padding: dp(10)
+            Button:
+                text: 'cancel'
+                on_press: root.dismiss()
+            Button:
+                text: 'test query'
+                on_press: pass
+            Button:
+                text: 'save'
+                on_press: app.add_query(title=title.text, query=query.text); root.dismiss();

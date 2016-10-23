@@ -1,0 +1,21 @@
+#:kivy 1.9.2
+
+<PatchsetRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.5, 0.5, 0.5, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    subject: 'TODO'
+    GridLayout:
+        cols: 2
+        rows: 2
+        Button:
+            text: root.subject
+        Label:
+            text: '1'
+        Label:
+            text: '2'
+        Label:
+            text: '3'
