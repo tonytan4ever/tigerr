@@ -6,12 +6,30 @@
 
 #:set _fsize dp(12)
 
-# Tigerr is a BoxLayout containing 2 side-by-side panes featuring RecycleViews
-# and appropriate controls above each pane with a title label
+
 
 # orientation: 'horizontal' --> y, top and center_y may be used for pos hints
-# orientation: 'vertical' --> x, right and center_x may be used
+#              [ horiz | horiz ]
 
+# orientation: 'vertical' --> x, right and center_x may be used
+#              [ vert ]
+#              [ ---- ]
+#              [ vert ]
+
+
+<MenuButton@Button>:
+    font_size: dp(12)
+    size_hint: (None, None)
+    size: dp(50), dp(25)
+    padding_x: dp(12)
+    padding_y: dp(6)
+    text_size: self.size
+    text: ''
+    multiline: False
+
+
+# Tigerr is a BoxLayout containing 2 side-by-side panes featuring RecycleViews
+# and appropriate controls above each pane with a title label
 <Tigerr>:
     canvas:
         Color:
@@ -30,19 +48,11 @@
         orientation: 'horizontal'
         cols: 4
         rows: 1
-        margin: [5, 5]
-        Button:
-            font_size: dp(12)
-            size_hint: (0.3, 1)
-            size: self.size
+        MenuButton:
             text: 'file'
-        Button:
-            font_size: dp(12)
-            size_hint: (0.3, 1)
+        MenuButton:
             text: 'edit'
-        Button:
-            font_size: dp(12)
-            size_hint: (1, 1)
+        MenuButton:
             text: 'view'
         Label:
             # (file/edit/view menu)
@@ -53,8 +63,9 @@
             width: root.width
             text: ''
             valign: 'middle'
-            halign: 'center'
+            halign: 'right'
             height: dp(12)
+            multiline: False
             font_name: 'fonts/Vera.ttf'
     BoxLayout:
         size_hint_y: 0.9
@@ -87,8 +98,8 @@
                 width: dp(140)
                 text: 'Queries'
                 bold: True
-            IconsArea:
-                text: '+'
+            AddQueryButton:
+                text: 'create'
             RecycleView:
                 id: queries
                 scroll_type: ['bars', 'content']
@@ -117,7 +128,7 @@
             size_hint: (1.0, 1.0)
             PanelHeader:
                 text: 'Patchsets'
-            IconsArea:
+            Label:
                 text: ''
             RecycleView:
                 # TODO
@@ -175,27 +186,35 @@
 <QueryRow@BoxLayout>:
     canvas.before:
         Color:
-            rgba: 0.6, 0.6, 0.6, 1
+            rgba: 0.6, 0.6, 0.6, .1
         Rectangle:
             size: self.size
             pos: self.pos
     title: 'query name'
     query: ''
     alerts: 0
-    qpid: ''
+    qid: ''
     GridLayout:
         rows: 1
         cols: 3
-        Image:
-            source: 'eye_open.gif'
+        ToggleButton:
+            size_hint: (None, None)
+            size: (dp(32), dp(32))
+            group: root.title
+            text: ''
+            state: 'normal'
+            Image:
+                size_hint: (None, None)
+                size: (dp(32), dp(32))
+                source: 'images/eye_open.gif'
         Label:
-            font_name: 'fonts/Vera-Bold.ttf'
+            font_name: 'fonts/Vera.ttf'
             font_size: dp(10)
             text: root.title
             text_size: [root.width / 1.5, dp(10)]
             halign: 'right'
             valign: 'middle'
-            bold: True
+            bold: False
             multiline: False
             shorten: True
         Label:
@@ -205,15 +224,65 @@
             opacity: 0.0
 
 
-<IconsArea@Label>:
+<AddQueryButton@Button>:
     text: ''
     size_hint: (None, None)
-    text_size: root.width, self.height
-    valign: 'top'
-    halign: 'right'
+    pos_hint: {'right': 1.0}
+    text_size: self.size
+    width: dp(50)
     height: dp(15)
-    font_size: 9
+    valign: 'top'
+    halign: 'center'
+    font_size: dp(9)
     font_name: 'fonts/Vera.ttf'
+    on_release: app.show_add_query()
+
+
+<AddQuery>:
+    size_hint: 0.75, 0.75
+    auto_dismiss: False
+    title: 'Create Query'
+    separator_color: [1.0, 1.0, 1.0, 0.5]
+    GridLayout:
+        cols: 1
+        rows: 5
+        Label:
+            text: 'Query Title:'
+            font_size: dp(20)
+            size_hint: (None, None)
+            pos_hint: {'left': 0.0}
+        TextInput:
+            id: title
+            font_size: dp(15)
+            multiline: False
+            font_name: 'fonts/Vera-Bold.ttf'
+            bold: True
+            text: 'My Custom Query'
+        Label:
+            text: 'Query:'
+            font_size: dp(20)
+            size_hint: (None, None)
+            pos_hint: {'left': 0.0}
+        TextInput:
+            id: query
+            font_size: dp(12)
+            multiline: True
+            font_name: 'fonts/Vera.ttf'
+            bold: False
+            text: 'is:open project:...'
+        GridLayout:
+            cols: 3
+            rows: 1
+            padding: dp(10)
+            Button:
+                text: 'cancel'
+                on_press: root.dismiss()
+            Button:
+                text: 'test query'
+                on_press: pass
+            Button:
+                text: 'save'
+                on_press: app.add_query(title=title.text, query=query.text); root.dismiss();
 
 
 <PanelHeader@Label>:

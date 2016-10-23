@@ -6,7 +6,7 @@ from kivy.config import Config
 # Comment out this line to develop touch features on a non-touch device
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
-Config.set('graphics', 'minimum_width', '400')
+Config.set('graphics', 'minimum_width', '500')
 Config.set('graphics', 'minimum_height', '400')
 
 
@@ -16,15 +16,19 @@ from os.path import expanduser as xpusr
 import pickle
 from pprint import pprint as pp
 import subprocess
+import time
 import json
 from uuid import uuid4
 import webbrowser
 
 from kivy.app import App
 from kivy.lang import Builder
+from kivy.properties import ListProperty
 from kivy.properties import NumericProperty
+from kivy.properties import ObjectProperty
 from kivy.properties import StringProperty
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.popup import Popup
 from kivy.uix.settings import SettingsWithSidebar
 
 from settings import settings_json
@@ -56,19 +60,30 @@ def _default_query_cache():
     return default_queries
 
 
-def gerrit_query(port, user, host, keyfile, query, limit):
+def gerrit_query(port, user, host, keyfile, query, limit=100):
     _sq = query
+    if ' limit:' in query:
+        # query is already limited, don't set limit: twice
+        _limit = ''
+    else:
+        # IFF no ' limit:' in query, use the 'limit' named arg
+        _limit = ' limit:{}'.format(limit)
+    # build the query string
     _query = str('gerrit query --all-approvals '
-                 '--format=JSON {subquery} limit:{lim}'.format(subquery=_sq,
-                                                               lim=limit))
+                 '--format=JSON {subquery}{lim}'.format(subquery=_sq,
+                                                         lim=_limit))
     proc = subprocess.Popen(['/usr/bin/ssh', '-i', keyfile, '-p', port,
                              '{}@{}'.format(user, host),
                              _query],
-                            stdout=subprocess.PIPE,
-                            )
+                            stdout=subprocess.PIPE)
+
+    # execute the query over ssh (weird, I know)
     x, e = proc.communicate()
+    
     results = []
     stats = []
+
+    # build the result dict
     for rr in x.split('\n'):
         if rr:
             _r = json.loads(rr)
@@ -96,11 +111,14 @@ class Tigerr(BoxLayout):
         self.queries.data = self.q_cache
 
     def execute_query(self, query, limit):
+        # TODO: find a more elegant way of accessing the app config
         config = App._running_app.config
         port = config.get('tigerr', 'port')
         user = config.get('tigerr', 'user')
         host = config.get('tigerr', 'host')
         key = config.get('tigerr', 'keyf')
+
+        # get the data
         q_dat, stats = gerrit_query(port, user, host, key, query, limit)
         self.patchsets.data = self.update_cache(ps_dat, self.ps_cache)
         print(stats)
@@ -115,7 +133,11 @@ class Tigerr(BoxLayout):
         return cache
 
     def sort(self):
+        # TODO: sorted by time waiting for a review since being verified+1
         self.rv.data = sorted(self.rv.data, key=lambda x: x['createdOn'])
+
+    '''
+    Included for reference (rv is the recycleview weakref):
 
     def insert(self, value):
         self.rv.data.insert(0, {'value': value or 'default value'})
@@ -128,6 +150,7 @@ class Tigerr(BoxLayout):
     def remove(self):
         if self.rv.data:
             self.rv.data.pop(0)
+    '''
 
     def pickle_cache(self):
         self._pickle(self.q_cache, _Q_PATH)
@@ -148,22 +171,42 @@ class Tigerr(BoxLayout):
 
 
 class TigerrApp(App):
-    title = 'Tiger - {}'.format(_VERSION)
+    # shown in the app titlebar
+    title = 'Tigerr - {}'.format(_VERSION)
+    
+    # weakref to the child object that holds the RecycleViews
+    tigerr = ObjectProperty()
+
+    # query_queue structure:
+    # [{'qid': <query uuid>, 'wait_sec': <wait sec after last query>}]
+    # To run a query "right now", push a new query dict onto the query_queue
+    # list at position 0 with the wait_sec set to 0.0
+    query_queue = ListProperty([])
+
     def build(self):
+        # The last_query_timestamp is used to keep Tigerr from flooding the
+        # Gerrit server with queries and getting yourself throttled or banned
+        self.last_query_timestamp = time.time()  # no queries yet, set to 'now'
+
         # Icon file format/size requirements vary from platform to platform.
         # Bug: no app icon ubuntu 16: https://github.com/kivy/kivy/issues/2202
         self.icon = 'icon.png'
+
         self.settings_cls = SettingsWithSidebar
+        # Comment out this line to show kivy settings in the settings panel:
         self.use_kivy_settings = False
-        return Tigerr()
+
+        # hold a weakref to the Tigerr instance to manipulate from this class
+        self.tigerr = Tigerr()
+        return self.tigerr
 
     def build_config(self, config):
         config.setdefaults('tigerr', {
                 'host': 'review.openstack.org',
                 'port': 29418,
                 'user': 'Jdoe',
-                'keyf': '~/.ssh/id_rsa.pub',
-                'cache_dir': '~/.tigerr'})
+                'keyf': xpusr('~/.ssh/id_rsa.pub'),
+                'cache_dir': '.'})
 
     def build_settings(self, settings):
         settings.add_json_panel('tigerr',
@@ -172,6 +215,47 @@ class TigerrApp(App):
 
     def on_config_change(self, config, section, key, value):
         print((config, section, key, value))
+
+    def show_add_query(self, *kwargs):
+        p = AddQuery()
+        p.open()
+
+    def add_query(self, title, query):
+        for q in self.tigerr.queries.data:
+            # TODO: handle duplicate queries before submission 
+            if query in q.get('query'):
+                print('This query already exists and is titled "{}"'.format(
+                    q.get('title')))
+                if title in q.get('title'):
+                    print('This query is a duplicate of {}'.format(
+                        q.get('title')))
+            if title in q.get('title') and not query in q.get('query'):
+                print('A different query with this title already exists')
+        u = str(uuid4())
+        print('Adding query {}, qid {}'.format(title, u))
+        self.tigerr.queries.data.append({'title': title,
+                                         'query': query,
+                                         'qid': u})
+
+    def query_sched(self):
+        if len(self.query_queue) == 0:
+            print('No queries to run, returning')
+            return
+        next_query = self.query_queue[0]
+        if next_query.get('wait_sec') >= self.sec_since_last_query:
+            pass  # XXX TODO XXX run this query, handling pagination if needed
+
+
+class AddQuery(Popup):
+    pass
+
+
+class QueryError(Popup):
+    pass  # TODO
+
+
+class QueryTest(Popup):
+    pass  # TODO show a few sample results from the new query
 
 
 if __name__ == '__main__':
