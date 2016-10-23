@@ -26,6 +26,8 @@ var/
 
 # *.ini settings files (kivy)
 *.ini
+# pickled cache files (tigerr)
+*.p
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

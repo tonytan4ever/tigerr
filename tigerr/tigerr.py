@@ -9,7 +9,7 @@ Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 Config.set('graphics', 'minimum_width', '500')
 Config.set('graphics', 'minimum_height', '400')
 
-
+import copy
 from datetime import datetime as dt
 from os.path import join as pjoin
 from os.path import expanduser as xpusr
@@ -108,7 +108,6 @@ class Tigerr(BoxLayout):
                                                            'cache_dir'))
         self.unpickle_cache()
         print('Cache restored, got queries: {}'.format(self.q_cache))
-        self.queries.data = self.q_cache
 
     def execute_query(self, query, limit):
         # TODO: find a more elegant way of accessing the app config
@@ -153,7 +152,12 @@ class Tigerr(BoxLayout):
     '''
 
     def pickle_cache(self):
-        self._pickle(self.q_cache, _Q_PATH)
+        p = []
+        for i in self.queries.data:
+            # TODO: elegantly pickle a weakref list(dict())
+            p.append(i)
+        self._pickle(p, _Q_PATH)
+        print('Queries pickled.')
         self._pickle(self.ps_cache, _PS_PATH)
 
     def _pickle(self, the_dict, the_filename):
@@ -162,11 +166,15 @@ class Tigerr(BoxLayout):
     def unpickle_cache(self):
         self.q_cache = self._unpickle(_Q_PATH)
         self.ps_cache = self._unpickle(_PS_PATH)
+        self.queries.data = self.q_cache
 
     def _unpickle(self, the_filename):
         try:
-            return pickle.load(open(pjoin(self.cache_dir, the_filename), 'rb'))
+            f = pjoin(self.cache_dir, the_filename)
+            print('Loading {}'.format(f))
+            return pickle.load(open(f, 'rb'))
         except IOError:
+            print('...Unable to load cache, using defaults')
             return _default_query_cache()
 
 
@@ -183,6 +191,8 @@ class TigerrApp(App):
     # list at position 0 with the wait_sec set to 0.0
     query_queue = ListProperty([])
 
+    banner_message = StringProperty()
+
     def build(self):
         # The last_query_timestamp is used to keep Tigerr from flooding the
         # Gerrit server with queries and getting yourself throttled or banned
@@ -198,6 +208,7 @@ class TigerrApp(App):
 
         # hold a weakref to the Tigerr instance to manipulate from this class
         self.tigerr = Tigerr()
+        self.banner_message = 'Cache restored, Tigerr ready.'
         return self.tigerr
 
     def build_config(self, config):
@@ -214,7 +225,7 @@ class TigerrApp(App):
                                 data=settings_json)
 
     def on_config_change(self, config, section, key, value):
-        print((config, section, key, value))
+        self.banner_message = 'Changed {} to {}'.format(key, value)
 
     def show_add_query(self, *kwargs):
         p = AddQuery()
@@ -224,18 +235,26 @@ class TigerrApp(App):
         for q in self.tigerr.queries.data:
             # TODO: handle duplicate queries before submission 
             if query in q.get('query'):
-                print('This query already exists and is titled "{}"'.format(
-                    q.get('title')))
                 if title in q.get('title'):
-                    print('This query is a duplicate of {}'.format(
-                        q.get('title')))
+                    m = 'This query is a duplicate of {}'.format(
+                        q.get('title'))
+                    self.banner_message = m
+                    return
+                m = 'This query already exists and is titled "{}"'.format(
+                    q.get('title'))
+                self.banner_message = m
+                return
             if title in q.get('title') and not query in q.get('query'):
-                print('A different query with this title already exists')
+                m = 'A query with the title "{}" already exists'.format(
+                        q.get('title'))
+                self.banner_message = m
+                return
         u = str(uuid4())
-        print('Adding query {}, qid {}'.format(title, u))
         self.tigerr.queries.data.append({'title': title,
                                          'query': query,
                                          'qid': u})
+        self.tigerr.pickle_cache()
+        self.banner_message = 'Added query "{}"'.format(title)
 
     def query_sched(self):
         if len(self.query_queue) == 0:
