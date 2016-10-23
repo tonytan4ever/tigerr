@@ -1,0 +1,41 @@
+#:kivy 1.9.2
+
+<QueryRow@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.6, 0.6, 0.6, .1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    title: 'query name'
+    query: ''
+    alerts: 0
+    qid: ''
+    GridLayout:
+        rows: 1
+        cols: 3
+        ToggleButton:
+            size_hint: (None, None)
+            size: (dp(32), dp(32))
+            group: root.title
+            text: ''
+            state: 'normal'
+            Image:
+                size_hint: (None, None)
+                size: (dp(32), dp(32))
+                source: 'images/eye_open.gif'
+        Label:
+            font_name: 'fonts/Vera.ttf'
+            font_size: dp(10)
+            text: root.title
+            text_size: [root.width / 1.5, dp(10)]
+            halign: 'right'
+            valign: 'middle'
+            bold: False
+            multiline: False
+            shorten: True
+        Label:
+            font_name: 'fonts/Vera.ttf'
+            font_size: dp(12)
+            text: str(root.alerts)
+            opacity: 0.0
