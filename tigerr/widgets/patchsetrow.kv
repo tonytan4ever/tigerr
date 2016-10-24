@@ -7,15 +7,30 @@
         Rectangle:
             size: self.size
             pos: self.pos
-    subject: 'TODO'
+    subject: ''
+    owned_by: ''
+    createdOnStr: ''
+    lastUpdatedStr: ''
     GridLayout:
         cols: 2
         rows: 2
         Button:
             text: root.subject
-        Label:
-            text: '1'
-        Label:
-            text: '2'
-        Label:
-            text: '3'
+            shorten: True
+            font_size: dp(12)
+            text_size: self.size
+            font_name: 'fonts/Vera-Bold.ttf'
+            bold: True
+        PSLabel:
+            text: root.owned_by
+        PSLabel:
+            text: 'created on: ' + root.createdOnStr
+        PSLabel:
+            text: 'last update: ' + root.lastUpdatedStr
+
+<PSLabel@Label>:
+    text: ''
+    font_size: dp(10)
+    text_size: self.size
+    font_name: 'fonts/Vera.ttf'
+
