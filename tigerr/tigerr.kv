@@ -32,6 +32,7 @@
     cols: 1
     rows: 3
     queries: queries
+    patchsets: patchsets
     # TODO:
     cache_size: 0
     BoxLayout:
@@ -119,9 +120,10 @@
             PanelHeader:
                 text: 'Patchsets'
             Label:
+                size_hint: (None, None)
+                height: dp(10)
                 text: ''
             RecycleView:
-                # TODO
                 id: patchsets
                 scroll_type: ['bars', 'content']
                 scroll_wheel_distance: dp(124)

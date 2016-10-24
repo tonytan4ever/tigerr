@@ -22,6 +22,7 @@ from uuid import uuid4
 import webbrowser
 
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.properties import ListProperty
 from kivy.properties import NumericProperty
@@ -33,10 +34,10 @@ from kivy.uix.settings import SettingsWithSidebar
 
 from settings import settings_json
 
-_VERSION = 'beta 0.4'
+_VERSION = 'beta 0.5'
 _T = '%Y-%b-%d %I:%M:%S %p'  # TODO: make configurable
-_Q_PATH = '.tigerr_queries.p'
-_PS_PATH = '.tigerr_patchsets.p'
+_Q_PATH = '.queries.p'
+_PS_PATH = '.patchsets.p'
 
 
 def _dt_ts(timestamp, strft):
@@ -45,18 +46,20 @@ def _dt_ts(timestamp, strft):
 
 def _default_query_cache():
     '''Only needs to be called once on first start'''
-    default_queries = [{'qpid': str(uuid4()),  # query <-> patchset association
+    default_queries = [{'qid': str(uuid4()),  # query <-> patchset association
                         'title': 'My Starred',
                         'query': 'is:starred',
-                        'alerts': 0},
-                       {'qpid': str(uuid4()),
+                        'alerts': 0
+                       },
+                       {'qid': str(uuid4()),
                         'title': 'My Watched',
                         'query': 'status:open is:watched',
                         'alerts': 0},
-                       {'qpid': str(uuid4()),
+                       {'qid': str(uuid4()),
                         'title': 'My Drafts',
                         'query': 'owner:self is:draft',
-                        'alerts': 0}]
+                        'alerts': 0
+                       }]
     return default_queries
 
 
@@ -91,13 +94,18 @@ def gerrit_query(port, user, host, keyfile, query, limit=100):
                 if _r['type'] == 'stats':
                     stats = _r
             else:
+                if 'id' in _r.keys():
+                    _r['gerrit_id'] = _r['id']
+                    del _r['id']
                 _r['createdOnStr'] = _dt_ts(_r['createdOn'], _T)
                 _r['lastUpdatedStr'] = _dt_ts(_r['lastUpdated'], _T)
                 _r['owned_by'] = _r['owner']['name']
-                _r['owner_email'] = _r['owner']['email']
+                try:
+                    _r['owner_email'] = _r['owner']['email']
+                except KeyError:
+                    _r['owner_email'] = ''
                 _r['owner_username'] = _r['owner']['username']
                 results.append(_r)
-    pp(results)
     return results, stats
 
 
@@ -109,56 +117,22 @@ class Tigerr(BoxLayout):
         self.unpickle_cache()
         print('Cache restored, got queries: {}'.format(self.q_cache))
 
-    def execute_query(self, query, limit):
-        # TODO: find a more elegant way of accessing the app config
-        config = App._running_app.config
-        port = config.get('tigerr', 'port')
-        user = config.get('tigerr', 'user')
-        host = config.get('tigerr', 'host')
-        key = config.get('tigerr', 'keyf')
-
-        # get the data
-        q_dat, stats = gerrit_query(port, user, host, key, query, limit)
-        self.patchsets.data = self.update_cache(ps_dat, self.ps_cache)
-        print(stats)
-
-    def update_cache(self, query_data, cache):
-        for record in query_data:
-            # record['id'] is the 'I57458722234...' string identifier in a PS
-            if record['id'] in cache.keys():
-                cache[record['id']] = record
-            else:
-                cache.update({record['id']: record})
-        return cache
-
     def sort(self):
         # TODO: sorted by time waiting for a review since being verified+1
         self.rv.data = sorted(self.rv.data, key=lambda x: x['createdOn'])
 
-    '''
-    Included for reference (rv is the recycleview weakref):
-
-    def insert(self, value):
-        self.rv.data.insert(0, {'value': value or 'default value'})
-
-    def update(self, value):
-        if self.rv.data:
-            self.rv.data[0]['value'] = value or 'default new value'
-            self.rv.refresh_from_data()
-
-    def remove(self):
-        if self.rv.data:
-            self.rv.data.pop(0)
-    '''
-
     def pickle_cache(self):
-        p = []
+        q = []
         for i in self.queries.data:
             # TODO: elegantly pickle a weakref list(dict())
-            p.append(i)
-        self._pickle(p, _Q_PATH)
+            q.append(i)
+        self._pickle(q, _Q_PATH)
         print('Queries pickled.')
-        self._pickle(self.ps_cache, _PS_PATH)
+        p = []
+        for o in self.patchsets.data:
+            p.append(o)
+        self._pickle(p, _PS_PATH)
+        print('Patchsets pickled.')
 
     def _pickle(self, the_dict, the_filename):
         pickle.dump(the_dict, open(pjoin(self.cache_dir, the_filename), 'wb'))
@@ -167,6 +141,7 @@ class Tigerr(BoxLayout):
         self.q_cache = self._unpickle(_Q_PATH)
         self.ps_cache = self._unpickle(_PS_PATH)
         self.queries.data = self.q_cache
+        self.patchsets.data = self.ps_cache
 
     def _unpickle(self, the_filename):
         try:
@@ -185,19 +160,11 @@ class TigerrApp(App):
     # weakref to the child object that holds the RecycleViews
     tigerr = ObjectProperty()
 
-    # query_queue structure:
-    # [{'qid': <query uuid>, 'wait_sec': <wait sec after last query>}]
-    # To run a query "right now", push a new query dict onto the query_queue
-    # list at position 0 with the wait_sec set to 0.0
     query_queue = ListProperty([])
 
     banner_message = StringProperty()
 
     def build(self):
-        # The last_query_timestamp is used to keep Tigerr from flooding the
-        # Gerrit server with queries and getting yourself throttled or banned
-        self.last_query_timestamp = time.time()  # no queries yet, set to 'now'
-
         # Icon file format/size requirements vary from platform to platform.
         # Bug: no app icon ubuntu 16: https://github.com/kivy/kivy/issues/2202
         self.icon = 'icon.png'
@@ -209,6 +176,17 @@ class TigerrApp(App):
         # hold a weakref to the Tigerr instance to manipulate from this class
         self.tigerr = Tigerr()
         self.banner_message = 'Cache restored, Tigerr ready.'
+
+        # initialize the query queue
+        for query in self.tigerr.queries.data:
+            self.query_queue.append(query)
+
+        # initialize the patchset data structure
+        # {{'qid': <qid>, {'gerrit_id': data, ...}}, ...}
+        self.ps_data = {}
+
+        # TODO: make query schedule configurable rather than just every 15 sec
+        Clock.schedule_interval(self.run_next_query, 15.0)
         return self.tigerr
 
     def build_config(self, config):
@@ -256,14 +234,33 @@ class TigerrApp(App):
         self.tigerr.pickle_cache()
         self.banner_message = 'Added query "{}"'.format(title)
 
-    def query_sched(self):
+    def run_next_query(self, dt):
+        # dt is delta time between scheduling and calling
         if len(self.query_queue) == 0:
             print('No queries to run, returning')
             return
-        next_query = self.query_queue[0]
-        if next_query.get('wait_sec') >= self.sec_since_last_query:
-            pass  # XXX TODO XXX run this query, handling pagination if needed
+        this_query = self.query_queue.pop(0)
+        print('Running scheduled query {}'.format(this_query))
+        self.banner_message = 'Running query "{}"...'.format(
+                this_query['title'])
+        q_dat, stats = gerrit_query(self.config.get('tigerr', 'port'),
+                                    self.config.get('tigerr', 'user'),
+                                    self.config.get('tigerr', 'host'),
+                                    self.config.get('tigerr', 'keyf'),
+                                    this_query['query'])
+        m = 'Query complete, {} rows in {}ms.'.format(
+                stats['rowCount'], stats['runTimeMilliseconds'])
+        self.banner_message = m
+        print(stats)
+        self.query_queue.append(this_query)
+        print('Updating patchsets with new data...')
+        self.update_patchsets(this_query['qid'], q_dat)
+        self.tigerr.pickle_cache()
 
+    def update_patchsets(self, qid, new_data):
+        # XXX TODO XXX resume here ... 
+        for data in new_data:
+            self.tigerr.patchsets.data.append(data)
 
 class AddQuery(Popup):
     pass
