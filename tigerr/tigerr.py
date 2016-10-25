@@ -230,8 +230,7 @@ class TigerrApp(App):
         u = str(uuid4())
         self.tigerr.queries.data.append({'title': title,
                                          'query': query,
-                                         'qid': u,
-                                         'last_run': time.time()})
+                                         'qid': u})
         self.tigerr.pickle_cache()
         self.banner_message = 'Added query "{}"'.format(title)
 
